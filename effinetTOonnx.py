@@ -1,17 +1,22 @@
 import torch
-import models.efficientnet as eff
+import argparse
+import models
 
 
-class EffiToOnnx:
-    def __init__(self):
-        self.model = eff.tf_efficientnet_b7(5)
-        self.model.load_state_dict(torch.load("only_weight.pt", weights_only=True))
+class EffiToOnnx():
+    def __init__(self, 
+                 arch : str,
+                 weight : str,
+                 output_size : int):
+        self.model = models.__dict__[arch](output_size)
+        self.model.load_state_dict(torch.load(weight, weights_only=True))
         self.model.eval()
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         self.model.to(self.device)
         self.dummy_input = torch.randn(1, 3, 224, 224).to(self.device)
 
-    def to_onnx(self, onnx_path):
+    def to_onnx(self, 
+                 onnx_path : str) -> None:
         torch.onnx.export(
             self.model,
             self.dummy_input,
@@ -22,41 +27,38 @@ class EffiToOnnx:
             input_names=["input"],
             output_names=["output"],
             dynamic_axes={
-                "input": {0: "batch_size"},
-                "output": {0: "batch_size"},
+                "input": {0: "batch_size", 2: "height", 3: "width"},
+                "output": {0: "batch_size", 2: "height", 3: "width"},
             }
         )
-# 모델 로드 (EfficientNet B7 모델 사용)
-model = eff.tf_efficientnet_b7(5)
-model.load_state_dict(torch.load("only_weight.pt", weights_only=True))
-model.eval()
 
-# GPU 사용 여부 확인
-device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-
-# 모델을 GPU로 이동
-model.to(device)
-
-# 더미 입력 (배치 크기: 1, 채널: 3, 이미지 크기: 224x224)
-dummy_input = torch.randn(1, 3, 224, 224).to(device)  # GPU로 이동
-
-ONNX_PATH = "trt.onnx"
-# ONNX 변환
-torch.onnx.export(
-    model,
-    dummy_input,
-    ONNX_PATH,       # 저장할 ONNX 파일 이름
-    export_params=True,             # 모델 파라미터 저장
-    opset_version=11,               # ONNX Opset 버전
-    do_constant_folding=True,       # 상수 폴딩 최적화
-    input_names=["input"],          # 입력 이름 정의
-    output_names=["output"],        # 출력 이름 정의
-    dynamic_axes={                  # 동적 입력 크기 허용
-        "input": {0: "batch_size"},
-        "output": {0: "batch_size"},
-    }
-)
 
 if __name__ == "__main__":
-    effi_to_onnx = EffiToOnnx()
-    effi_to_onnx.to_onnx("trt.onnx")
+    parser = argparse.ArgumentParser()
+    parser.add_argument('-a', '--arch',
+                        required=False,
+                        type=str, 
+                        default='tf_efficientnet_b7',
+                        metavar='ARCH',
+                        help='model architecture')
+    parser.add_argument("-w", "--weight", 
+            required=False,
+            type=str,
+            default="weight.pt",
+            metavar="WEIGHT",
+            help="weight path")
+    parser.add_argument("--output-size", 
+            required=False,
+            type=int, 
+            default=1000, 
+            metavar="OUTPUT_SIZE",
+            help="Output size of the model")
+    parser.add_argument("-s", "--save-path", 
+            required=False,
+            type=str,
+            default="trt.onnx",
+            metavar="SAVE_PATH",
+            help="Save path of the onnx file")
+    args = parser.parse_args()
+    effi_to_onnx = EffiToOnnx(args.arch, args.weight, args.output_size)
+    effi_to_onnx.to_onnx(args.save_path)

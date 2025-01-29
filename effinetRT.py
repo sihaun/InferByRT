@@ -19,7 +19,11 @@ def softmax(x):
     return exp_x / np.sum(exp_x) 
 
 class EffinetRT(object):
-    def __init__(self, engine_file_path, num_classes, input_size, batch_size):
+    def __init__(self, 
+                 engine_file_path : str, 
+                 num_classes : int, 
+                 batch_size : int,
+                 input_size : int):
         try:
             stream = cuda.Stream()
             # TensorRT 로깅 설정

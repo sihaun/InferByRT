@@ -1,8 +1,5 @@
-
-import ctypes
-import random
+import torch
 import threading
-import time
 import cv2
 import numpy as np
 import pycuda.autoinit 
@@ -20,10 +17,12 @@ def softmax(x):
 
 class EffinetRT(object):
     def __init__(self, 
-                 engine_file_path : str, 
-                 num_classes : int, 
-                 batch_size : int,
-                 input_size : int):
+                 engine_file_path : str,
+                 label_map : str,
+                 input_size : int,
+                 batch_size : int):
+        super().__init__()
+        # binding index
         try:
             stream = cuda.Stream()
             # TensorRT 로깅 설정
@@ -71,13 +70,13 @@ class EffinetRT(object):
             self.bindings = bindings
             self.input_size = input_size
             self.batch_size = batch_size
-            self.num_classes = num_classes
+            self.num_classes = len(label_map)
         except Exception as e:
             logging.error("Error in __init__: %s", str(e))
             raise
 
-    def infer(self, raw_image):
-        threading.Thread.__init__(self)
+    def infer(self, 
+              raw_image_list : list) -> tuple[list, list, list]:
         # Restore
         stream = self.stream
         context = self.context
@@ -88,11 +87,10 @@ class EffinetRT(object):
         # Do image preprocess
         batch_image_raw = []
         batch_input_image = np.empty(shape=[self.batch_size, 3, self.input_size, self.input_size])
-        image_raw = raw_image
-
-        input_image, image_raw = self.preprocess_image(image_raw)
-        batch_image_raw.append(image_raw)
-        for i in range(self.batch_size):
+        for i, image_raw in enumerate(raw_image_list):
+            print('image_raw:', image_raw.shape)
+            input_image = self.preprocess_image(image_raw)
+            batch_image_raw.append(image_raw)
             np.copyto(batch_input_image[i], input_image)
         batch_input_image = np.ascontiguousarray(batch_input_image)
 
@@ -112,15 +110,19 @@ class EffinetRT(object):
         # Here we use the first row of output in that batch_size = 1
         output = np.array(host_outputs[0]).reshape(self.num_classes)
         # Do postprocess
+        max_value_list = []
+        max_index_list = []
         for i in range(self.batch_size):
             output_slice = output[i * self.num_classes: (i + 1) * self.num_classes]
             softmax_output = softmax(output_slice)
             max_value = np.max(softmax_output)
+            max_value_list.append(max_value)
             max_index = np.argmax(softmax_output)
-            class_name = categories[max_index]
+            max_index_list.append(max_index)
+            class_name = label_map[max_index]
         print('max_value:', max_value, 'max_index:', max_index, 'class_name:', class_name) 
                
-        return image_raw
+        return batch_image_raw, max_value_list, max_index_list
 
     def destroy(self):
         # Synchronize the stream before popping the context
@@ -129,7 +131,8 @@ class EffinetRT(object):
     def __del__(self):
         self.destroy()
 
-    def preprocess_image(self, raw_bgr_image):
+    def preprocess_image(self, 
+                         raw_bgr_image : cv2.imread) -> np.ndarray:
 
         image_raw = raw_bgr_image
 
@@ -145,7 +148,43 @@ class EffinetRT(object):
         image = np.expand_dims(image, axis=0)
         # Convert the image to row-major order, also known as "C order":
         image = np.ascontiguousarray(image)
-        return image, image_raw
+        return image
+    
+
+    def inference_image(self, 
+                        source : str):
+        with torch.no_grad():
+            img = cv2.imread(source, cv2.IMREAD_COLOR)
+            batch_image_raw, accuaracy_list, index_list = er.infer([img])
+            for i, image_raw in enumerate(batch_image_raw):
+                cv2.putText(image_raw, "Class: " + str(index_list[i]) + " " + label_map[index_list[i]], (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
+                cv2.putText(image_raw, "Accuaracy: " + str(accuaracy_list[i]), (10, 60), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
+                cv2.imshow("Output", batch_image_raw[i])
+                cv2.waitKey(0)
+                cv2.destroyAllWindows()
+
+
+    def inference_video(self,
+                        source : str):
+        cap = cv2.VideoCapture(args.source)
+            
+        cv2.namedWindow("Output", cv2.WINDOW_GUI_EXPANDED)
+        
+        while cap.isOpened():
+            ret, frame = cap.read()
+            if ret:
+                batch_image_raw, accuaracy_list, index_list = er.infer([frame])
+                for i, image_raw in enumerate(batch_image_raw):
+                    cv2.putText(image_raw, "Class: " + str(index_list[i]) + " " + label_map[index_list[i]], (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
+                    cv2.putText(image_raw, "Accuaracy: " + str(accuaracy_list[i]), (10, 60), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
+                    cv2.imshow("Output", batch_image_raw[i])
+                    cv2.waitKey(0)
+            else:
+                break
+            if cv2.waitKey(33) & 0xFF == ord('q'):
+                break
+        cap.release()
+        cv2.destroyAllWindows()
 
 
 if __name__ == "__main__":
@@ -158,53 +197,33 @@ if __name__ == "__main__":
     parser.add_argument("-e", "--engine", 
             required=False,
             type=str, 
-            default="recycle.trt",
+            default="engine.trt",
             help="TensorRT engine file path")
+    parser.add_argument("-l", "--label", 
+            required=False,
+            type=str, 
+            default="label_map.txt",
+            help="Label map file path")
     parser.add_argument("-s", "--size", 
             required=False,
             type=int, 
             default=224, 
             help="Input image size")
-    parser.add_argument("-b", "--batch", 
-            required=False,
-            type=int, 
-            default=1, 
-            help="Batch size")
     parser.add_argument("-src", "--source", 
             required=False,
             type=str, 
-            default="test_image_4.jpg", 
+            default="test_image.jpg", 
             help="Image Or Video source")
     args = parser.parse_args()
-    categories = ["can", "glass", "paper", "plastic"]
-    output_size = len(categories)
+
+    label_map = np.loadtxt(args.label, str, delimiter='\t')
+
     try:
-        er = EffinetRT(args.engine, output_size, args.size, args.batch)
+        er = EffinetRT(args.engine, label_map, args.size, batch_size=1)
         if args.mode == "Image":
-
-            img = cv2.imread(args.source, cv2.IMREAD_COLOR)
-            batch_image_raw = er.infer(img)
-            cv2.imshow("Output", img)
-            cv2.waitKey(0)
-            cv2.destroyAllWindows()
-        else:
-            cap = cv2.VideoCapture(args.source)
-                
-            cv2.namedWindow("Output", cv2.WINDOW_GUI_EXPANDED)
-            
-            while cap.isOpened():
-                ret, frame = cap.read()
-                if ret:
-                    batch_image_raw = er.infer(frame)
-                    cv2.imshow("Output", frame)
-                    cv2.waitKey(1)
-                else:
-                    break
-                if cv2.waitKey(33) & 0xFF == ord('q'):
-                    break
-            cap.release()
-            cv2.destroyAllWindows()
-
+            er.inference_image(args.source)
+        elif args.mode == "Video":
+            er.inference_video(args.source)
     except Exception as e:
         logging.error("Error in main: %s", str(e))
         raise

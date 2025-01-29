@@ -25,11 +25,7 @@ class EffiToOnnx():
             opset_version=11,
             do_constant_folding=True,
             input_names=["input"],
-            output_names=["output"],
-            dynamic_axes={
-                "input": {0: "batch_size", 2: "height", 3: "width"},
-                "output": {0: "batch_size", 2: "height", 3: "width"},
-            }
+            output_names=["output"]
         )
 
 
@@ -50,13 +46,13 @@ if __name__ == "__main__":
     parser.add_argument("--output-size", 
             required=False,
             type=int, 
-            default=1000, 
+            default=5, 
             metavar="OUTPUT_SIZE",
             help="Output size of the model")
     parser.add_argument("-s", "--save-path", 
             required=False,
             type=str,
-            default="trt.onnx",
+            default="weight.onnx",
             metavar="SAVE_PATH",
             help="Save path of the onnx file")
     args = parser.parse_args()

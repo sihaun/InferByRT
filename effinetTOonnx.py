@@ -31,30 +31,30 @@ class EffiToOnnx():
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument('-a', '--arch',
+    parser.add_argument('-a', '--arch', 
                         required=False,
                         type=str, 
                         default='tf_efficientnet_b7',
                         metavar='ARCH',
                         help='model architecture')
     parser.add_argument("-w", "--weight", 
-            required=False,
-            type=str,
-            default="weight.pt",
-            metavar="WEIGHT",
-            help="weight path")
+                        required=False,
+                        type=str,
+                        default="weight.pt",
+                        metavar="WEIGHT",
+                        help="weight path")
     parser.add_argument("--output-size", 
-            required=False,
-            type=int, 
-            default=5, 
-            metavar="OUTPUT_SIZE",
-            help="Output size of the model")
+                        required=False,
+                        type=int, 
+                        default=5, 
+                        metavar="OUTPUT_SIZE",
+                        help="Output size of the model")
     parser.add_argument("-s", "--save-path", 
-            required=False,
-            type=str,
-            default="weight.onnx",
-            metavar="SAVE_PATH",
-            help="Save path of the onnx file")
+                        required=False,
+                        type=str,
+                        default="weight.onnx",
+                        metavar="SAVE_PATH",
+                        help="Save path of the onnx file")
     args = parser.parse_args()
     effi_to_onnx = EffiToOnnx(args.arch, args.weight, args.output_size)
     effi_to_onnx.to_onnx(args.save_path)

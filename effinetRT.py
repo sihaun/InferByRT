@@ -190,30 +190,30 @@ class EffinetRT(object):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("-m", "--mode", 
-            required=False,
-            type=str, 
-            default="Image", 
-            help="Select Image or Video mode")
+                        required=False,
+                        type=str, 
+                        default="Image", 
+                        help="Select Image or Video mode")
     parser.add_argument("-e", "--engine", 
-            required=False,
-            type=str, 
-            default="engine.trt",
-            help="TensorRT engine file path")
+                        required=False,
+                        type=str, 
+                        default="engine.trt",
+                        help="TensorRT engine file path")
     parser.add_argument("-l", "--label", 
-            required=False,
-            type=str, 
-            default="label_map.txt",
-            help="Label map file path")
+                        required=False,
+                        type=str, 
+                        default="label_map.txt",
+                        help="Label map file path")
     parser.add_argument("-s", "--size", 
-            required=False,
-            type=int, 
-            default=224, 
-            help="Input image size")
+                        required=False,
+                        type=int, 
+                        default=224, 
+                        help="Input image size")
     parser.add_argument("-src", "--source", 
-            required=False,
-            type=str, 
-            default="test_image.jpg", 
-            help="Image Or Video source")
+                        required=False,
+                        type=str, 
+                        default="test_image.jpg", 
+                        help="Image Or Video source")
     args = parser.parse_args()
 
     label_map = np.loadtxt(args.label, str, delimiter='\t')

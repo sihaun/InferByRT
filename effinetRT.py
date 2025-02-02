@@ -8,6 +8,11 @@ import tensorrt as trt
 import logging
 import argparse
 
+# pi_camera
+gst_str = ("nvarguscamerasrc ! video/x-raw(memory:NVMM), width=(int)224, height=(int)224,\
+            format=(string)NV12, framerate=(fraction)60/1 ! nvvidconv flip-method=0 ! video/x-raw,\
+            width=(int)224, height=(int)224, format=(string)BGRx ! videoconvert ! video/x-raw, format=(string)BGR ! appsink")
+
 # 에러 로그를 파일로 저장
 logging.basicConfig(filename='error.log', level=logging.ERROR)
 
@@ -217,6 +222,8 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     label_map = np.loadtxt(args.label, str, delimiter='\t')
+    if args.mode == "Video" and args.source == "csi://0":
+        args.source = gst_str
 
     try:
         er = EffinetRT(args.engine, label_map, args.size, batch_size=1)

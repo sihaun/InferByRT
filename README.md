@@ -38,3 +38,21 @@ gst_str = ("nvarguscamerasrc ! video/x-raw(memory:NVMM), width=(int)224, height=
             format=(string)NV12, framerate=(fraction)60/1 ! nvvidconv flip-method=0 ! video/x-raw,\
             width=(int)224, height=(int)224, format=(string)BGRx ! videoconvert ! video/x-raw, format=(string)BGR ! appsink")
 ```
+### result
+After the effinetRT.py is executed, the following format results appear in the image and terminal.
+<p align="center">
+    <img src="source/result.png" width="50%" height="50%">
+</p>
+
+```Bash
+[02/02/2025-21:44:08] [TRT] [I] Loaded engine size: 126 MiB
+[02/02/2025-21:44:09] [TRT] [I] [MemUsageChange] TensorRT-managed allocation in IExecutionContext creation: CPU +2, GPU +9, now: CPU 2, GPU 130 (MiB)      
+bingding: input (1, 3, 224, 224)
+bingding: output (1, 5)
+image_raw: (1413, 1624, 3)
+max_value: 0.6667156 max_index: 1 class_name: fubao
+```
+### The script for the model weight in the example above is in [RuiHui](https://github.com/sihaun/RuiHui)
+
+
+

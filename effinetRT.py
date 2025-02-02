@@ -217,7 +217,7 @@ if __name__ == "__main__":
     parser.add_argument("-src", "--source", 
                         required=False,
                         type=str, 
-                        default="test_image.jpg", 
+                        default="source/test_image.jpg", 
                         help="Image Or Video source")
     args = parser.parse_args()
 

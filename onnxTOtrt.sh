@@ -1,0 +1,1 @@
+trtexec --onnx=recycle_weight.onnx --saveEngine=recycle.trt --fp16
